@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Memory Game - Crea Solution</title>
+  <style>
+    :root {
+      --blue: #0d47a1;
+      --light-blue: #e6f0ff;
+      --card-size: min(22vw, 110px);
+      --border-radius: 12px;
+      --shadow: 0 6px 14px rgba(13, 71, 161, 0.15);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #fff;
+      color: var(--blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    .app {
+      width: min(520px, 100vw);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      justify-content: center;
+    }
+    .logo svg { width: 64px; height: 64px; }
+    .logo span {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+    .grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      justify-items: center;
+      user-select: none;
+    }
+    .card {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1/1;
+      max-width: var(--card-size);
+      min-width: 44px;
+      min-height: 44px;
+      perspective: 1000px;
+    }
+    .card-inner {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 260ms ease;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      background: transparent;
+    }
+    .card.flipped .card-inner { transform: rotateY(180deg); }
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: var(--border-radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--blue);
+      background: #fff;
+      transition: background 160ms ease, border-color 160ms ease;
+    }
+    .card-back { background: var(--light-blue); }
+    .card-front { transform: rotateY(180deg); }
+    .card svg { width: 60%; height: 60%; }
+    .card.matched .card-face { background: #f0f6ff; border-color: #0b3d91; }
+    .status {
+      font-size: 14px;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      color: #0b3d91;
+    }
+    button {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 16px;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      min-width: 120px;
+      min-height: 44px;
+      box-shadow: var(--shadow);
+      transition: transform 150ms ease, box-shadow 150ms ease;
+      touch-action: manipulation;
+    }
+    button:active { transform: translateY(1px); box-shadow: 0 4px 10px rgba(13, 71, 161, 0.25); }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.96);
+      padding: 24px;
+      text-align: center;
+      z-index: 10;
+    }
+    .overlay.visible { display: flex; }
+    .overlay-content {
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      align-items: center;
+      color: var(--blue);
+      line-height: 1.5;
+    }
+    .overlay p { margin: 0; font-size: 18px; }
+    @media (max-width: 480px) {
+      .app { padding: 12px; gap: 12px; }
+      .logo svg { width: 54px; height: 54px; }
+      .logo span { font-size: 18px; }
+      .grid { gap: 8px; }
+      .card svg { width: 68%; height: 68%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" aria-label="Memory Game Crea Solution">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 300 300" role="img" aria-label="Crea Solution logo">
+        <defs>
+          <linearGradient id="cblue" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="var(--blue)" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="var(--blue)"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#cblue)" d="M150 20c-71 0-130 59-130 130s59 130 130 130c43 0 82-21 106-54-23 16-52 25-82 25-79 0-143-64-143-143C31 97 51 51 82 21 104 7 127 0 150 0c71 0 130 59 130 130 0 34-13 65-35 88 17-23 27-51 27-82C272 72 217 17 150 17Z"/>
+      </svg>
+      <span>Crea Solution</span>
+    </div>
+    <div class="status" id="status">Trova tutte le coppie</div>
+    <div class="grid" id="grid" aria-live="polite"></div>
+    <button id="reset">Rigioca</button>
+  </div>
+
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true">
+    <div class="overlay-content">
+      <p>Ti auguriamo un Natale pieno di gioia e di piccoli momenti di felicità.<br>Auguri da Crea Solution</p>
+      <button id="play-again">Rigioca</button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const grid = document.getElementById('grid');
+      const status = document.getElementById('status');
+      const resetButton = document.getElementById('reset');
+      const overlay = document.getElementById('overlay');
+      const playAgain = document.getElementById('play-again');
+      const flipDuration = 260;
+      let firstCard = null;
+      let secondCard = null;
+      let lockBoard = false;
+      let matches = 0;
+
+      const icons = {
+        tree: '<svg viewBox="0 0 100 100" fill="none" stroke="var(--blue)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M50 10 26 44h16L20 68h24v18h12V68h24L58 44h16Z"/></svg>',
+        star: '<svg viewBox="0 0 100 100" fill="var(--blue)" stroke="var(--blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"><path d="m50 8 11 26 28 2-21 19 7 27-25-14-25 14 7-27-21-19 28-2Z"/></svg>',
+        snow: '<svg viewBox="0 0 100 100" fill="none" stroke="var(--blue)" stroke-width="5" stroke-linecap="round"><path d="M50 10v80M27 18l46 64M73 18 27 82M14 50h72"/><path d="m36 14 14 10 14-10m0 72-14-10-14 10M14 36l10 14-10 14m72 0-10-14 10-14"/></svg>',
+        bell: '<svg viewBox="0 0 100 100" fill="none" stroke="var(--blue)" stroke-width="6" stroke-linecap="round"><path d="M28 64h44c0-20-6-38-22-38S28 44 28 64Z"/><path d="M36 64c0 9 6 16 14 16s14-7 14-16"/><circle cx="50" cy="78" r="4" fill="var(--blue)"/></svg>',
+        gift: '<svg viewBox="0 0 100 100" fill="none" stroke="var(--blue)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="30" width="68" height="50" rx="6"/><path d="M16 42h68M50 30v50"/><path d="M50 30c-6 0-14-4-14-10s8-10 14 2c6-12 14-6 14-2s-8 10-14 10Z"/></svg>',
+        bauble: '<svg viewBox="0 0 100 100" fill="none" stroke="var(--blue)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><circle cx="50" cy="56" r="28"/><path d="M44 18h12v12H44z"/><path d="M34 50c4 2 9 3 16 3 8 0 13-2 16-4M40 63c4 3 10 5 18 5"/></svg>',
+        candle: '<svg viewBox="0 0 100 100" fill="none" stroke="var(--blue)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M50 18c6 8 6 14 0 18-6-4-6-10 0-18Z" fill="var(--blue)" stroke="none"/><rect x="38" y="38" width="24" height="44" rx="6"/><path d="M38 50h24"/></svg>',
+        mitten: '<svg viewBox="0 0 100 100" fill="none" stroke="var(--blue)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M62 30a12 12 0 0 0-24 0v16a10 10 0 0 0-10 10v8a10 10 0 0 0 10 10h24a10 10 0 0 0 10-10V52A22 22 0 0 0 62 30Z"/><path d="M28 62h12"/></svg>'
+      };
+      const iconKeys = Object.keys(icons).slice(0, 8);
+
+      function createCard(iconName) {
+        const card = document.createElement('button');
+        card.className = 'card';
+        card.setAttribute('data-icon', iconName);
+        card.setAttribute('aria-label', 'Carta con icona ' + iconName);
+        card.setAttribute('type', 'button');
+        card.innerHTML = `
+          <div class="card-inner">
+            <div class="card-face card-back"></div>
+            <div class="card-face card-front">${icons[iconName]}</div>
+          </div>
+        `;
+        addInputListener(card, onCardSelect);
+        return card;
+      }
+
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+      }
+
+      function resetBoard() {
+        grid.innerHTML = '';
+        firstCard = secondCard = null;
+        lockBoard = false;
+        matches = 0;
+        status.textContent = 'Trova tutte le coppie';
+
+        const pairIcons = [...iconKeys, ...iconKeys];
+        shuffle(pairIcons);
+        pairIcons.forEach(icon => grid.appendChild(createCard(icon)));
+      }
+
+      function onCardSelect(event) {
+        event.preventDefault();
+        if (lockBoard) return;
+        const card = event.currentTarget;
+        if (card.classList.contains('flipped')) return;
+        card.classList.add('flipped');
+
+        if (!firstCard) {
+          firstCard = card;
+          return;
+        }
+        secondCard = card;
+        lockBoard = true;
+        compareCards();
+      }
+
+      function compareCards() {
+        const isMatch = firstCard.dataset.icon === secondCard.dataset.icon;
+        if (isMatch) {
+          firstCard.classList.add('matched');
+          secondCard.classList.add('matched');
+          matches += 1;
+          setTimeout(() => {
+            resetSelection();
+            if (matches === iconKeys.length) showOverlay();
+          }, flipDuration);
+        } else {
+          setTimeout(() => {
+            firstCard.classList.remove('flipped');
+            secondCard.classList.remove('flipped');
+            resetSelection();
+          }, 520);
+        }
+      }
+
+      function resetSelection() {
+        [firstCard, secondCard] = [null, null];
+        lockBoard = false;
+      }
+
+      function showOverlay() {
+        status.textContent = 'Tutte le coppie trovate!';
+        overlay.classList.add('visible');
+      }
+
+      function hideOverlay() {
+        overlay.classList.remove('visible');
+      }
+
+      function addInputListener(element, handler) {
+        if (window.PointerEvent) {
+          element.addEventListener('pointerdown', handler, { passive: false });
+        } else if ('ontouchstart' in window) {
+          element.addEventListener('touchstart', handler, { passive: false });
+          element.addEventListener('click', handler);
+        } else {
+          element.addEventListener('click', handler);
+        }
+      }
+
+      function init() {
+        addInputListener(resetButton, () => { hideOverlay(); resetBoard(); });
+        addInputListener(playAgain, () => { hideOverlay(); resetBoard(); });
+        resetBoard();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
